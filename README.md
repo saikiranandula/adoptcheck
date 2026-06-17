@@ -33,7 +33,7 @@ cp .env.example .env.local
 | Variable | Required | Default | Purpose |
 | --- | --- | --- | --- |
 | `OPENROUTER_API_KEY` | No | — | Enables the optional analyst layer via [OpenRouter](https://openrouter.ai/keys). Without it the analyst is skipped. |
-| `OPENROUTER_MODEL` | No | `openai/gpt-mini-latest` | Analyst model. Must be a valid OpenRouter model id that supports structured (`json_schema`) output. |
+| `OPENROUTER_MODEL` | No | `openai/gpt-4o-mini` | Analyst model. Must be a valid OpenRouter model id that supports structured (`json_schema`) output. |
 | `OPENROUTER_SITE_URL` | No | `https://adoptcheck.nullhype.tech` | Attribution metadata shown on your OpenRouter dashboard. |
 | `OPENROUTER_APP_NAME` | No | `AdoptCheck` | Attribution metadata shown on your OpenRouter dashboard. |
 | `GITHUB_TOKEN` | No | — | Raises the GitHub API rate limit from 60 to 5000 req/hour (public read scope is enough). |

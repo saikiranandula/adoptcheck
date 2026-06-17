@@ -1,8 +1,16 @@
 "use client";
 
 import { AlertTriangle, Brain, Check, Copy, Download, ExternalLink, FileJson, GitBranch, Loader2, Search } from "lucide-react";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import type { RepoReport } from "@/lib/types";
+import { UpgradePrompt } from "./upgrade-prompt";
+
+interface UsageState {
+  freeRemaining: number;
+  freeLimit: number;
+  credits: number;
+  configured: boolean;
+}
 
 const examples = ["vercel/next.js", "langchain-ai/langchainjs", "modelcontextprotocol/typescript-sdk"];
 
@@ -12,6 +20,26 @@ export function Scanner() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState<"markdown" | "json" | null>(null);
+  const [usage, setUsage] = useState<UsageState | null>(null);
+  const [showPaywall, setShowPaywall] = useState(false);
+
+  const refreshUsage = useCallback(async () => {
+    try {
+      const res = await fetch("/api/usage", { cache: "no-store" });
+      if (res.ok) setUsage((await res.json()) as UsageState);
+    } catch {
+      // non-fatal; metering UI is best-effort
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshUsage();
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("purchased") === "true") {
+      // Purchased credits arrive via webhook; poll briefly so the UI reflects them.
+      const timers = [800, 2000, 4000].map((ms) => window.setTimeout(refreshUsage, ms));
+      return () => timers.forEach((timer) => window.clearTimeout(timer));
+    }
+  }, [refreshUsage]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -28,11 +56,18 @@ export function Scanner() {
       });
       const payload = (await response.json()) as RepoReport | { error?: string };
 
+      if (response.status === 402 || (typeof payload === "object" && "error" in payload && payload.error === "FREE_TIER_EXHAUSTED")) {
+        setShowPaywall(true);
+        refreshUsage();
+        return;
+      }
+
       if (!response.ok) {
         throw new Error("error" in payload && payload.error ? payload.error : "Scan failed.");
       }
 
       setReport(payload as RepoReport);
+      refreshUsage();
     } catch (scanError) {
       setError(scanError instanceof Error ? scanError.message : "Scan failed.");
     } finally {
@@ -99,6 +134,13 @@ export function Scanner() {
               </button>
             ))}
           </div>
+          {usage?.configured && (
+            <p className="usage-note">
+              {usage.credits > 0
+                ? `${usage.credits} paid check${usage.credits === 1 ? "" : "s"} remaining`
+                : `${usage.freeRemaining} of ${usage.freeLimit} free checks left`}
+            </p>
+          )}
         </div>
       </section>
 
@@ -263,6 +305,8 @@ export function Scanner() {
         AdoptCheck does not clone or execute repository code in this MVP. Treat legal and security signals as adoption-risk evidence,
         not legal or security advice.
       </p>
+
+      {showPaywall && <UpgradePrompt onClose={() => setShowPaywall(false)} />}
     </main>
   );
 }

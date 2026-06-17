@@ -571,3 +571,150 @@ pre {
     font-size: 48px;
   }
 }
+
+/* ── Usage note + paywall ─────────────────────────────────────── */
+.usage-note {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.paywall-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(3, 6, 8, 0.78);
+  backdrop-filter: blur(4px);
+}
+
+.paywall-card {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+}
+
+.paywall-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: inline-flex;
+  padding: 6px;
+  border-radius: 6px;
+  color: var(--muted);
+}
+
+.paywall-close:hover {
+  color: var(--text);
+}
+
+.paywall-title {
+  margin-top: 8px;
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.paywall-sub {
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--soft);
+}
+
+.paywall-label {
+  display: block;
+  margin-top: 20px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.paywall-tiers {
+  display: grid;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.paywall-tier {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #0b0d0f;
+}
+
+.paywall-tier-best {
+  border-color: var(--accent);
+}
+
+.paywall-badge {
+  position: absolute;
+  top: -10px;
+  left: 18px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #03100d;
+  background: var(--accent);
+}
+
+.paywall-price {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.paywall-tier-name {
+  margin-top: 2px;
+  font-size: 14px;
+  color: var(--soft);
+}
+
+.paywall-tier-note {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.paywall-perks {
+  margin: 12px 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.paywall-error {
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--danger);
+}
+
+.paywall-foot {
+  margin-top: 16px;
+  font-size: 12px;
+  text-align: center;
+  color: var(--muted);
+}
+
+@media (min-width: 560px) {
+  .paywall-tiers {
+    grid-template-columns: 1fr 1fr;
+  }
+}

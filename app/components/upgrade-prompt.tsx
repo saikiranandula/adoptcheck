@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Loader2, X } from "lucide-react";
+import { track } from "@vercel/analytics";
 
 interface UpgradePromptProps {
   user: { email: string | null } | null;
@@ -34,6 +35,7 @@ export function UpgradePrompt({ user, onClose }: UpgradePromptProps) {
   async function handlePurchase(tier: "single" | "pack") {
     setLoading(tier);
     setError(null);
+    track("checkout_started", { product: "adoptcheck", tier });
     try {
       const res = await fetch("/api/payments/checkout", {
         method: "POST",

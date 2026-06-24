@@ -18,6 +18,7 @@
   "dependencies": {
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.103.0",
+    "@vercel/analytics": "^2.0.1",
     "dodopayments": "^2.28.2",
     "lucide-react": "^1.17.0",
     "nanoid": "^5.1.9",

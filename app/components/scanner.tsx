@@ -4,6 +4,7 @@ import { AlertTriangle, Brain, Check, Copy, Download, ExternalLink, FileJson, Gi
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import type { RepoReport } from "@/lib/types";
 import { UpgradePrompt } from "./upgrade-prompt";
+import { track } from "@vercel/analytics";
 
 interface UsageState {
   freeRemaining: number;
@@ -37,6 +38,7 @@ export function Scanner() {
   useEffect(() => {
     refreshUsage();
     if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("purchased") === "true") {
+      track("purchase_succeeded", { product: "adoptcheck" });
       // Purchased credits arrive via webhook; poll briefly so the UI reflects them.
       const timers = [800, 2000, 4000].map((ms) => window.setTimeout(refreshUsage, ms));
       return () => timers.forEach((timer) => window.clearTimeout(timer));
@@ -60,6 +62,7 @@ export function Scanner() {
       const payload = (await response.json()) as RepoReport | { error?: string };
 
       if (response.status === 402 || (typeof payload === "object" && "error" in payload && payload.error === "FREE_TIER_EXHAUSTED")) {
+        track("paywall_shown", { product: "adoptcheck" });
         setShowPaywall(true);
         refreshUsage();
         return;
@@ -69,8 +72,10 @@ export function Scanner() {
         throw new Error("error" in payload && payload.error ? payload.error : "Scan failed.");
       }
 
-      setReport(payload as RepoReport);
+      const scanned = payload as RepoReport;
+      setReport(scanned);
       setShareSlug((payload as { historySlug?: string | null }).historySlug ?? null);
+      track("scan_run", { product: "adoptcheck", verdict: scanned.verdict });
       refreshUsage();
     } catch (scanError) {
       setError(scanError instanceof Error ? scanError.message : "Scan failed.");

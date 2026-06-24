@@ -8,7 +8,7 @@ interface WebhookPayload {
   type: string;
   data: {
     metadata?: {
-      adoptcheck_session_id?: string;
+      adoptcheck_user_id?: string;
       tier?: string;
       credits?: string;
     };
@@ -40,14 +40,14 @@ export async function POST(req: NextRequest) {
     }
 
     if (payload.type === "payment.succeeded") {
-      const sessionId = payload.data.metadata?.adoptcheck_session_id;
+      const userId = payload.data.metadata?.adoptcheck_user_id;
       const credits = parseInt(payload.data.metadata?.credits ?? "1", 10);
 
-      if (sessionId && Number.isFinite(credits) && credits > 0) {
-        await addCredits(sessionId, credits);
-        console.log(`Added ${credits} AdoptCheck credits to session ${sessionId}`);
+      if (userId && Number.isFinite(credits) && credits > 0) {
+        await addCredits(userId, credits);
+        console.log(`Added ${credits} AdoptCheck credits to user ${userId}`);
       } else {
-        console.warn("payment.succeeded without a usable adoptcheck_session_id in metadata");
+        console.warn("payment.succeeded without a usable adoptcheck_user_id in metadata");
       }
     }
 

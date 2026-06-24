@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Loader2, X } from "lucide-react";
 
 interface UpgradePromptProps {
+  user: { email: string | null } | null;
   onClose?: () => void;
 }
 
@@ -21,29 +22,28 @@ const TIERS = [
     price: "$4.99",
     name: "20 repo checks",
     note: "one-time · ~$0.25 each",
-    perks: ["20 full reports", "Everything in single", "No expiry", "Best for evaluating a stack"],
+    perks: ["20 full reports", "Everything in single", "No expiry", "Credits stay on your account"],
     best: true,
   },
 ];
 
-export function UpgradePrompt({ onClose }: UpgradePromptProps) {
+export function UpgradePrompt({ user, onClose }: UpgradePromptProps) {
   const [loading, setLoading] = useState<"single" | "pack" | null>(null);
-  const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   async function handlePurchase(tier: "single" | "pack") {
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setError("Enter a valid email so we can send your receipt.");
-      return;
-    }
     setLoading(tier);
     setError(null);
     try {
       const res = await fetch("/api/payments/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tier, email }),
+        body: JSON.stringify({ tier }),
       });
+      if (res.status === 401) {
+        window.location.href = "/login?next=/";
+        return;
+      }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong");
       window.location.href = data.url;
@@ -69,45 +69,55 @@ export function UpgradePrompt({ onClose }: UpgradePromptProps) {
           AdoptCheck is open source and free for your first 3 checks. One-time payments, no subscription.
         </p>
 
-        <label className="paywall-label" htmlFor="paywall-email">
-          Email (for your receipt)
-        </label>
-        <input
-          id="paywall-email"
-          className="repo-input"
-          type="email"
-          placeholder="you@example.com"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          autoComplete="email"
-        />
-
-        <div className="paywall-tiers">
-          {TIERS.map((tier) => (
-            <div key={tier.id} className={`paywall-tier${tier.best ? " paywall-tier-best" : ""}`}>
-              {tier.best && <span className="paywall-badge">Best value</span>}
-              <div className="paywall-price">{tier.price}</div>
-              <div className="paywall-tier-name">{tier.name}</div>
-              <div className="paywall-tier-note">{tier.note}</div>
-              <ul className="paywall-perks">
-                {tier.perks.map((perk) => (
-                  <li key={perk}>✓ {perk}</li>
-                ))}
-              </ul>
-              <button
-                className="primary-button"
-                type="button"
-                onClick={() => handlePurchase(tier.id)}
-                disabled={loading !== null}
-              >
-                {loading === tier.id ? <Loader2 size={16} className="spin" /> : null}
-                {loading === tier.id ? "Redirecting" : `Buy ${tier.name}`}
-              </button>
+        {!user ? (
+          <div className="paywall-auth">
+            <p className="paywall-sub" style={{ marginTop: 4 }}>
+              Sign in to buy credits — they stay on your account, across devices.
+            </p>
+            <a className="paywall-auth-btn" href="/auth/sign-in?provider=github&next=/">
+              Continue with GitHub
+            </a>
+            <a className="paywall-auth-btn" href="/auth/sign-in?provider=google&next=/">
+              Continue with Google
+            </a>
+          </div>
+        ) : (
+          <>
+            <p className="paywall-signedin">
+              Signed in as <strong>{user.email}</strong>
+            </p>
+            <div className="paywall-tiers">
+              {TIERS.map((tier) => (
+                <div key={tier.id} className={`paywall-tier${tier.best ? " paywall-tier-best" : ""}`}>
+                  {tier.best && <span className="paywall-badge">Best value</span>}
+                  <div className="paywall-price">{tier.price}</div>
+                  <div className="paywall-tier-name">{tier.name}</div>
+                  <div className="paywall-tier-note">{tier.note}</div>
+                  <ul className="paywall-perks">
+                    {tier.perks.map((perk) => (
+                      <li key={perk}>✓ {perk}</li>
+                    ))}
+                  </ul>
+                  <button
+                    className="primary-button"
+                    type="button"
+                    onClick={() => handlePurchase(tier.id)}
+                    disabled={loading !== null}
+                  >
+                    {loading === tier.id ? <Loader2 size={16} className="spin" /> : null}
+                    {loading === tier.id ? "Redirecting" : `Buy ${tier.name}`}
+                  </button>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </>
+        )}
 
-        {error && <p className="paywall-error" role="alert">{error}</p>}
+        {error && (
+          <p className="paywall-error" role="alert">
+            {error}
+          </p>
+        )}
 
         <p className="paywall-foot">Secure checkout via Dodo Payments.</p>
       </div>

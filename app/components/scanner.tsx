@@ -10,6 +10,7 @@ interface UsageState {
   freeLimit: number;
   credits: number;
   configured: boolean;
+  user: { email: string | null } | null;
 }
 
 const examples = ["vercel/next.js", "langchain-ai/langchainjs", "modelcontextprotocol/typescript-sdk"];
@@ -95,7 +96,19 @@ export function Scanner() {
           <span>AdoptCheck</span>
         </div>
         <div className="top-actions">
-          <span>Public repo scans only</span>
+          {usage?.user ? (
+            <span className="auth-state">
+              {usage.user.email}
+              {" · "}
+              <a className="quiet-link" href="/auth/sign-out">
+                Sign out
+              </a>
+            </span>
+          ) : (
+            <a className="quiet-link" href="/login?next=/">
+              Sign in
+            </a>
+          )}
           <a className="quiet-link" href="https://nullhype.tech" target="_blank" rel="noreferrer">
             nullhype.tech
           </a>
@@ -306,7 +319,7 @@ export function Scanner() {
         not legal or security advice.
       </p>
 
-      {showPaywall && <UpgradePrompt onClose={() => setShowPaywall(false)} />}
+      {showPaywall && <UpgradePrompt user={usage?.user ?? null} onClose={() => setShowPaywall(false)} />}
     </main>
   );
 }

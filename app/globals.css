@@ -718,3 +718,42 @@ pre {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* ── Auth ─────────────────────────────────────────────────────── */
+.auth-state {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.paywall-signedin {
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--soft);
+}
+
+.paywall-auth {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.paywall-auth-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-strong);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.paywall-auth-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}

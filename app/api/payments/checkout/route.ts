@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import DodoPayments from "dodopayments";
-import { getSessionId } from "@/lib/session";
+import { getCurrentUser } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -26,38 +26,35 @@ const PRODUCTS = {
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://adoptcheck.nullhype.tech";
 
-function isValidEmail(email: unknown): email is string {
-  return typeof email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
 export async function POST(req: NextRequest) {
   try {
     if (!process.env.DODO_SECRET_KEY) {
       return NextResponse.json({ error: "Payments are not configured." }, { status: 503 });
     }
 
+    // Purchases require an account so credits persist across devices.
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "AUTH_REQUIRED" }, { status: 401 });
+    }
+
     const body = await req.json().catch(() => ({}));
     const tier = body.tier === "pack" ? "pack" : "single";
     const product = PRODUCTS[tier];
-
     if (!product.product_id) {
       return NextResponse.json({ error: "Payments are not configured." }, { status: 503 });
     }
-    if (!isValidEmail(body.email)) {
-      return NextResponse.json({ error: "A valid email is required for your receipt." }, { status: 400 });
-    }
 
-    // Credits are attached to the anonymous device session, not an account.
-    const sessionId = await getSessionId();
+    const customerEmail = user.email ?? `${user.id}@users.adoptcheck.nullhype.tech`;
 
     const session = await getDodo().payments.create({
       billing: { city: "", country: "US", state: "", street: "", zipcode: "" },
-      customer: { email: body.email, name: body.email },
+      customer: { email: customerEmail, name: customerEmail },
       product_cart: [{ product_id: product.product_id, quantity: 1 }],
       payment_link: true,
       return_url: `${APP_URL}/?purchased=true`,
       metadata: {
-        adoptcheck_session_id: sessionId,
+        adoptcheck_user_id: user.id,
         tier,
         credits: String(product.credits),
       },

@@ -2,23 +2,23 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 export const FREE_LIMIT = Number(process.env.ADOPTCHECK_FREE_LIMIT ?? "3");
 
-const TABLE = "adoptcheck_sessions";
+const SESSIONS = "adoptcheck_sessions"; // anonymous free tier, keyed by ac_sid cookie
+const CREDITS = "adoptcheck_credits"; // paid credits, keyed by auth user_id
 
 export interface UsageState {
   freeUsed: number;
   freeLimit: number;
   freeRemaining: number;
   credits: number;
-  /** Whether another scan is allowed right now. */
+  /** Can another scan run right now (free remaining OR account credits). */
   allowed: boolean;
-  /** Whether the metering store is configured (Supabase env present). */
+  /** Metering store configured (Supabase service-role env present). */
   configured: boolean;
 }
 
 /**
- * Server-only Supabase client using the service role key. Returns null when
- * the store is not configured, in which case metering fails open and the
- * scanner keeps working (deterministic-first philosophy).
+ * Service-role Supabase client for metering writes (bypasses RLS). Returns null
+ * when not configured, in which case metering fails open.
  */
 function admin(): SupabaseClient | null {
   const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -38,19 +38,23 @@ function unconfigured(): UsageState {
   };
 }
 
-export async function getUsage(sessionId: string): Promise<UsageState> {
+async function freeUsedFor(db: SupabaseClient, sessionId: string): Promise<number> {
+  const { data } = await db.from(SESSIONS).select("free_used").eq("session_id", sessionId).maybeSingle();
+  return data?.free_used ?? 0;
+}
+
+async function creditsFor(db: SupabaseClient, userId: string | null): Promise<number> {
+  if (!userId) return 0;
+  const { data } = await db.from(CREDITS).select("credits").eq("user_id", userId).maybeSingle();
+  return data?.credits ?? 0;
+}
+
+export async function getUsage(sessionId: string, userId: string | null): Promise<UsageState> {
   const db = admin();
   if (!db) return unconfigured();
-
   try {
-    const { data } = await db
-      .from(TABLE)
-      .select("free_used, credits")
-      .eq("session_id", sessionId)
-      .maybeSingle();
-
-    const freeUsed = data?.free_used ?? 0;
-    const credits = data?.credits ?? 0;
+    const freeUsed = await freeUsedFor(db, sessionId);
+    const credits = await creditsFor(db, userId);
     const freeRemaining = Math.max(0, FREE_LIMIT - freeUsed);
     return {
       freeUsed,
@@ -61,59 +65,43 @@ export async function getUsage(sessionId: string): Promise<UsageState> {
       configured: true,
     };
   } catch {
-    // If the table/query fails, fail open rather than blocking scans.
     return unconfigured();
   }
 }
 
-/** Record one successful scan: spend a free scan, else a paid credit. */
-export async function consumeScan(sessionId: string): Promise<void> {
+/** Record one successful scan: spend a free scan first, else a paid credit. */
+export async function consumeScan(sessionId: string, userId: string | null): Promise<void> {
   const db = admin();
   if (!db) return;
-
-  const { data } = await db
-    .from(TABLE)
-    .select("free_used, credits")
-    .eq("session_id", sessionId)
-    .maybeSingle();
-
-  const freeUsed = data?.free_used ?? 0;
-  const credits = data?.credits ?? 0;
   const now = new Date().toISOString();
 
+  const freeUsed = await freeUsedFor(db, sessionId);
   if (freeUsed < FREE_LIMIT) {
     await db
-      .from(TABLE)
-      .upsert(
-        { session_id: sessionId, free_used: freeUsed + 1, updated_at: now },
-        { onConflict: "session_id" }
-      );
-  } else if (credits > 0) {
-    await db
-      .from(TABLE)
-      .upsert(
-        { session_id: sessionId, credits: credits - 1, updated_at: now },
-        { onConflict: "session_id" }
-      );
+      .from(SESSIONS)
+      .upsert({ session_id: sessionId, free_used: freeUsed + 1, updated_at: now }, { onConflict: "session_id" });
+    return;
+  }
+
+  if (userId) {
+    const credits = await creditsFor(db, userId);
+    if (credits > 0) {
+      await db
+        .from(CREDITS)
+        .upsert({ user_id: userId, credits: credits - 1, updated_at: now }, { onConflict: "user_id" });
+    }
   }
 }
 
-/** Add purchased credits to a session (called from the Dodo webhook). */
-export async function addCredits(sessionId: string, amount: number): Promise<void> {
+/** Add purchased credits to a user account (called from the Dodo webhook). */
+export async function addCredits(userId: string, amount: number): Promise<void> {
   const db = admin();
   if (!db) return;
-
-  const { data } = await db
-    .from(TABLE)
-    .select("credits")
-    .eq("session_id", sessionId)
-    .maybeSingle();
-
-  const credits = data?.credits ?? 0;
+  const credits = await creditsFor(db, userId);
   await db
-    .from(TABLE)
+    .from(CREDITS)
     .upsert(
-      { session_id: sessionId, credits: credits + amount, updated_at: new Date().toISOString() },
-      { onConflict: "session_id" }
+      { user_id: userId, credits: credits + amount, updated_at: new Date().toISOString() },
+      { onConflict: "user_id" }
     );
 }

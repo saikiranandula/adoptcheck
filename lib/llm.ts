@@ -1,6 +1,7 @@
 import type { LLMAnalysis, RepoReport } from "./types";
 
 interface OpenRouterResponse {
+  model?: string;
   choices?: Array<{
     message?: {
       content?: string | null;
@@ -13,6 +14,10 @@ interface OpenRouterResponse {
 
 const defaultModel = "openai/gpt-4o-mini";
 
+// Fallback chain: if the primary model is deprecated/unavailable, OpenRouter
+// tries the next one, so a single model change never breaks the analyst.
+const fallbackModels = ["openai/gpt-4o-mini", "openai/gpt-4.1-mini"];
+
 export async function generateLLMAnalysis(report: RepoReport): Promise<LLMAnalysis> {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
@@ -20,6 +25,7 @@ export async function generateLLMAnalysis(report: RepoReport): Promise<LLMAnalys
   }
 
   const model = process.env.OPENROUTER_MODEL || defaultModel;
+  const models = [...new Set([model, ...fallbackModels])];
   const generatedAt = new Date().toISOString();
 
   try {
@@ -32,7 +38,7 @@ export async function generateLLMAnalysis(report: RepoReport): Promise<LLMAnalys
         "X-OpenRouter-Title": process.env.OPENROUTER_APP_NAME || "AdoptCheck"
       },
       body: JSON.stringify({
-        model,
+        models,
         messages: [
           {
             role: "system",
@@ -73,7 +79,7 @@ export async function generateLLMAnalysis(report: RepoReport): Promise<LLMAnalys
     const parsed = parseAnalysis(extractOutputText(body));
     return {
       status: "generated",
-      model,
+      model: body.model ?? model,
       generatedAt,
       ...parsed,
       evidenceIds: filterEvidenceIds(parsed.evidenceIds, report)

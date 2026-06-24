@@ -26,11 +26,11 @@ describe("generateLLMAnalysis", () => {
       "fetch",
       vi.fn(async (_url: string, init?: RequestInit) => {
         const body = JSON.parse(String(init?.body)) as {
-          model: string;
+          models: string[];
           response_format?: { type?: string; json_schema?: { name?: string } };
           provider?: { require_parameters?: boolean };
         };
-        expect(body.model).toBe("test-model");
+        expect(body.models[0]).toBe("test-model");
         expect(body.response_format?.type).toBe("json_schema");
         expect(body.response_format?.json_schema?.name).toBe("adoptcheck_llm_analysis");
         expect(body.provider?.require_parameters).toBe(true);

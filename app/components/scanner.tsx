@@ -23,6 +23,7 @@ export function Scanner() {
   const [copied, setCopied] = useState<"markdown" | "json" | null>(null);
   const [usage, setUsage] = useState<UsageState | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [shareSlug, setShareSlug] = useState<string | null>(null);
 
   const refreshUsage = useCallback(async () => {
     try {
@@ -48,6 +49,7 @@ export function Scanner() {
     setError(null);
     setReport(null);
     setCopied(null);
+    setShareSlug(null);
 
     try {
       const response = await fetch("/api/scan", {
@@ -68,6 +70,7 @@ export function Scanner() {
       }
 
       setReport(payload as RepoReport);
+      setShareSlug((payload as { historySlug?: string | null }).historySlug ?? null);
       refreshUsage();
     } catch (scanError) {
       setError(scanError instanceof Error ? scanError.message : "Scan failed.");
@@ -98,6 +101,10 @@ export function Scanner() {
         <div className="top-actions">
           {usage?.user ? (
             <span className="auth-state">
+              <a className="quiet-link" href="/history">
+                History
+              </a>
+              {" · "}
               {usage.user.email}
               {" · "}
               <a className="quiet-link" href="/auth/sign-out">
@@ -167,6 +174,18 @@ export function Scanner() {
 
       {report && (
         <section className="report" aria-label={`Due diligence report for ${report.repo.fullName}`}>
+          {shareSlug && (
+            <div className="share-line">
+              Saved to your{" "}
+              <a className="quiet-link" href="/history">
+                history
+              </a>
+              {" · Share: "}
+              <a className="quiet-link" href={`/r/${shareSlug}`}>
+                /r/{shareSlug}
+              </a>
+            </div>
+          )}
           <div className="verdict-band">
             <div>
               <p className="verdict-kicker">Verdict</p>

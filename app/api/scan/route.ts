@@ -5,6 +5,7 @@ import { attachLLMAnalysis, buildRepoReport } from "@/lib/report";
 import { getSessionId } from "@/lib/session";
 import { consumeScan, getUsage } from "@/lib/usage";
 import { getCurrentUser } from "@/lib/auth";
+import { saveReport } from "@/lib/reports";
 
 export const runtime = "nodejs";
 
@@ -36,7 +37,13 @@ export async function POST(request: Request) {
       await consumeScan(sessionId, user?.id ?? null);
     }
 
-    return NextResponse.json(report);
+    // Save to history for signed-in users and hand back a shareable slug.
+    let historySlug: string | null = null;
+    if (user) {
+      historySlug = await saveReport(user.id, report);
+    }
+
+    return NextResponse.json({ ...report, historySlug });
   } catch (error) {
     if (error instanceof GitHubApiError) {
       return NextResponse.json(
